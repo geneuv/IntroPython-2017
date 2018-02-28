@@ -4,16 +4,18 @@
 tests for  json_save
 """
 
-import json_save as js
+import json_save.json_save_meta as js
 
 import pytest
 
-class NoInit(js.JsonSavable):
+
+class NoInit(js.JsonSaveable):
     x = js.Int()
     y = js.String()
 
+
 # A few simple examples to test
-class SimpleClass(js.JsonSavable):
+class SimpleClass(js.JsonSaveable):
 
     a = js.Int()
     b = js.Float()
@@ -25,17 +27,17 @@ class SimpleClass(js.JsonSavable):
             self.b = b
 
 
-class ClassWithList(js.JsonSavable):
+class ClassWithList(js.JsonSaveable):
 
     x = js.Int()
-    l = js.List()
+    lst = js.List()
 
-    def __init__(self, x, l):
+    def __init__(self, x, lst):
         self.x = x
-        self.l = l
+        self.lst = lst
 
 
-class ClassWithDict(js.JsonSavable):
+class ClassWithDict(js.JsonSaveable):
     x = js.Int()
     d = js.Dict()
 
@@ -46,12 +48,12 @@ class ClassWithDict(js.JsonSavable):
 
 @pytest.fixture
 def nested_example():
-    l = [SimpleClass(3, 4.5),
-         SimpleClass(100, 5.2),
-         SimpleClass(34, 89.1),
-         ]
+    lst = [SimpleClass(3, 4.5),
+           SimpleClass(100, 5.2),
+           SimpleClass(34, 89.1),
+           ]
 
-    return ClassWithList(34, l)
+    return ClassWithList(34, lst)
 
 
 @pytest.fixture
@@ -90,7 +92,7 @@ def test_list_attr():
 
     saved = cwl.to_json_compat()
     assert saved['x'] == 10
-    assert saved['l'] == [1, 5, 2, 8]
+    assert saved['lst'] == [1, 5, 2, 8]
     assert saved['__obj_type'] == 'ClassWithList'
 
 
@@ -98,10 +100,9 @@ def test_nested(nested_example):
 
     saved = nested_example.to_json_compat()
 
-    print(saved)
     assert saved['x'] == 34
-    assert len(saved['l']) == 3
-    for obj in saved['l']:
+    assert len(saved['lst']) == 3
+    for obj in saved['lst']:
         assert obj['__obj_type'] == 'SimpleClass'
 
 
@@ -190,3 +191,45 @@ def test_from_json_dict2(nested_dict):
     reconstructed = js.from_json(json_str)
 
     assert reconstructed == nested_dict
+
+def test_eq():
+    sc1 = SimpleClass(3, 4.5)
+    sc2 = SimpleClass(3, 4.5)
+
+    assert sc1 == sc2
+
+
+def test_not_eq():
+    sc1 = SimpleClass(3, 4.5)
+    sc2 = SimpleClass(3, 4.4)
+
+    assert sc1 != sc2
+
+
+def test_not_eq_reconstruct():
+    sc1 = SimpleClass.from_json_dict(SimpleClass(3, 4.5).to_json_compat())
+    sc2 = SimpleClass.from_json_dict(SimpleClass(2, 4.5).to_json_compat())
+
+    assert sc1 != sc2
+    assert sc2 != sc1
+
+
+def test_not_valid():
+    """
+    You should get an error trying to make a savable class with
+    no savable attributes.
+    """
+    with pytest.raises(TypeError):
+        class NotValid(js.JsonSaveable):
+            pass
+
+
+def test_not_valid_class_not_instance():
+    """
+    You should get an error trying to make a savable class with
+    no savable attributes.
+    """
+    with pytest.raises(TypeError):
+        class NotValid(js.JsonSaveable):
+            a = js.Int
+            b = js.Float
